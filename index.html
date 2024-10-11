@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscaminas 3x3</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            text-align: center;
+            line-height: 60px;
+            background-color: #ddd;
+            cursor: pointer;
+        }
+        .mine {
+            background-color: red;
+        }
+        .safe {
+            background-color: lightgreen;
+        }
+        .button {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Buscaminas 3x3</h1>
+<div class="grid" id="grid"></div>
+<button class="button" onclick="solveWithAI()">Resolver con IA (Paso a Paso)</button>
+
+<script>
+    const size = 3;
+    const mineCount = 3;
+    let mines = [];
+    let revealedCells = new Set();
+    let grid = document.getElementById("grid");
+
+    function initGame() {
+        mines = generateMines();
+        createBoard();
+    }
+
+    function generateMines() {
+        let minePositions = new Set();
+        while (minePositions.size < mineCount) {
+            minePositions.add(Math.floor(Math.random() * size * size));
+        }
+        return Array.from(minePositions);
+    }
+
+    function createBoard() {
+        grid.innerHTML = '';
+        for (let i = 0; i < size * size; i++) {
+            let cell = document.createElement("div");
+            cell.classList.add("cell");
+            cell.id = i;
+            cell.addEventListener("click", () => reveal(i));
+            cell.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+                markMine(i);
+            });
+            grid.appendChild(cell);
+        }
+    }
+
+    function getAdjacentCells(index) {
+        let row = Math.floor(index / size);
+        let col = index % size;
+        let adjacent = [];
+
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                let newRow = row + i;
+                let newCol = col + j;
+                if (
+                    newRow >= 0 && newRow < size &&
+                    newCol >= 0 && newCol < size &&
+                    !(i === 0 && j === 0)
+                ) {
+                    adjacent.push(newRow * size + newCol);
+                }
+            }
+        }
+        return adjacent;
+    }
+
+    function countAdjacentMines(index) {
+        let adjacentCells = getAdjacentCells(index);
+        return adjacentCells.filter(cell => mines.includes(cell)).length;
+    }
+
+    function reveal(index) {
+        if (revealedCells.has(index)) return;
+
+        let cell = document.getElementById(index);
+        if (mines.includes(index)) {
+            cell.classList.add("mine");
+            cell.textContent = "💣";
+            gameOver();
+        } else {
+            let count = countAdjacentMines(index);
+            cell.classList.add("safe");
+            cell.textContent = count;
+            revealedCells.add(index);
+
+            // Si no hay minas adyacentes, revelar vecinos automáticamente
+            if (count === 0) {
+                getAdjacentCells(index).forEach(adj => reveal(adj));
+            }
+        }
+    }
+
+    function markMine(index) {
+        let cell = document.getElementById(index);
+        if (cell.textContent === "🚩") {
+            cell.textContent = "";
+        } else {
+            cell.textContent = "🚩";
+        }
+    }
+
+    function gameOver() {
+        for (let i = 0; i < size * size; i++) {
+            let cell = document.getElementById(i);
+            if (mines.includes(i)) {
+                cell.classList.add("mine");
+                cell.textContent = "💣";
+            }
+            cell.style.pointerEvents = "none";
+        }
+        alert("Juego terminado!");
+    }
+
+    function solveWithAI() {
+        let knowledge = [];
+
+        // Recopilar el conocimiento de celdas no reveladas
+        for (let i = 0; i < size * size; i++) {
+            if (!revealedCells.has(i)) {
+                let count = countAdjacentMines(i);
+                knowledge.push({ index: i, count });
+            }
+        }
+
+        // Aplicar reglas de lógica paso a paso con animación
+        let delay = 1000; // Tiempo de espera entre cada paso en milisegundos
+
+        knowledge.forEach((entry, step) => {
+            setTimeout(() => {
+                let { index, count } = entry;
+                let adjacent = getAdjacentCells(index);
+                let unrevealedAdj = adjacent.filter(cell => !revealedCells.has(cell));
+
+                if (count === 0) {
+                    // Todas las adyacentes son seguras
+                    unrevealedAdj.forEach(cell => reveal(cell));
+                } else if (count === unrevealedAdj.length) {
+                    // Todas las adyacentes son minas
+                    unrevealedAdj.forEach(cell => markMine(cell));
+                }
+            }, delay * step);
+        });
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
